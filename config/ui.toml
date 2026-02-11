@@ -1,0 +1,17 @@
+# UI theme and card rendering
+
+[suits]
+clubs = "#2d5a27"
+diamonds = "#1e3a8a"
+hearts = "#991b1b"
+spades = "#374151"
+
+[feedback]
+correct = "#22c55e"
+close = "#eab308"
+incorrect = "#ef4444"
+
+[card]
+width = 60
+height = 84
+font_size = 18

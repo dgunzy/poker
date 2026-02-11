@@ -1,0 +1,49 @@
+# Game variant definitions
+# See GAME-RULES.md for hand ranking rules.
+#
+# simulation_type:
+#   - draw: held cards + random draw to complete hand. 0-5 held for 5-card games.
+#   - board: held (hole) + random board. 0-2 held for Hold'em, 0-4 for Omaha.
+#   Dead cards are always excluded from the simulation pool.
+
+[games.deuce_to_seven]
+name = "NL 2-7"
+hand_size = 5
+deck_size = 52
+simulation_type = "draw"
+description = "Deuce-to-Seven Lowball - aces high, straights and flushes count against you"
+
+[games.ace_to_five]
+name = "A-5 / Razz"
+hand_size = 5
+deck_size = 52
+simulation_type = "draw"
+description = "Ace-to-Five - aces low, straights and flushes ignored. Best hand: A-2-3-4-5 (wheel)"
+
+[games.holdem]
+name = "NLHE"
+hand_size = 2
+deck_size = 52
+simulation_type = "board"
+description = "No Limit Hold'em - 2 hole + 5 board, best 5 from 7. Standard high rankings."
+
+[games.omaha]
+name = "PLO"
+hand_size = 4
+deck_size = 52
+simulation_type = "board"
+description = "Pot Limit Omaha - 4 hole + 5 board. Use exactly 2 from hand, 3 from board."
+
+[games.omaha8]
+name = "O8"
+hand_size = 4
+deck_size = 52
+simulation_type = "board"
+description = "Omaha Hi-Lo 8-or-better. 4 hole + 5 board. High: standard. Low: A-5, 8-or-better qualifier."
+
+# [games.badugi]
+# id = "badugi"
+# name = "Badugi"
+# hand_size = 4
+# deck_size = 52
+# description = "4-card lowball - one card per suit ideal"
