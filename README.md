@@ -11,7 +11,7 @@ Download the latest release for your platform from the [Releases](../../releases
 | Platform | File |
 |----------|------|
 | macOS (Apple Silicon) | `Poker Simulator_x.x.x_aarch64.dmg` |
-| macOS (Intel) | `Poker Simulator_x.x.x_x64.dmg` |
+| macOS (Intel, e.g. MacBook Pro 2020) | `Poker Simulator_x.x.x_x64.dmg` |
 | Windows | `Poker Simulator_x.x.x_x64-setup.exe` or `.msi` |
 | Linux (Debian/Ubuntu) | `poker-simulator_x.x.x_amd64.deb` |
 | Linux (other) | `poker-simulator_x.x.x_amd64.AppImage` |

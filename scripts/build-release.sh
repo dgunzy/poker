@@ -28,7 +28,8 @@ if [[ -z "$TARGET" ]]; then
     Darwin)
       case "$(uname -m)" in
         arm64) TARGET=aarch64-apple-darwin ;;
-        *)     TARGET=x86_64-apple-darwin ;;
+        x86_64|i386) TARGET=x86_64-apple-darwin ;;
+        *)     TARGET=aarch64-apple-darwin ;;
       esac
       ;;
     Linux)   TARGET=x86_64-unknown-linux-gnu ;;
