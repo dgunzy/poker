@@ -29,6 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm pkg set version="$VERSION"
+          echo "Building version: $VERSION"
+
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:

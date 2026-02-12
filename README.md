@@ -16,7 +16,7 @@ Download the latest release for your platform from the [Releases](../../releases
 | Linux (Debian/Ubuntu) | `poker-simulator_x.x.x_amd64.deb` |
 | Linux (other) | `poker-simulator_x.x.x_amd64.AppImage` |
 
-**macOS**: If you see "app can't be opened because it is from an unidentified developer", right-click the app and choose Open, then click Open in the dialog.
+**macOS**: If you see "app is damaged" or "app can't be opened because it is from an unidentified developer", right-click the app and choose **Open**, then click Open in the dialog. (The app uses ad-hoc signing; double-click may be blocked until you whitelist it.)
 
 **Windows**: If SmartScreen warns about an unrecognized app, click "More info" then "Run anyway". This happens because the app is not code-signed.
 
@@ -113,11 +113,22 @@ The frontend communicates with Rust via Tauri IPC commands. All card data is ser
 Releases are built automatically by GitHub Actions when a version tag is pushed:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-This triggers builds for macOS (ARM + Intel), Windows, and Linux. Artifacts are uploaded as a draft GitHub Release for review before publishing.
+This triggers builds for macOS (ARM + Intel), Windows, and Linux. Artifacts are uploaded as a draft GitHub Release for review before publishing. The version is read from the tag (e.g. `v1.0.0` → `1.0.0`).
+
+### Test the release build locally
+
+Before pushing a tag, you can replicate the CI build locally:
+
+```bash
+make build-release VERSION=1.0.0
+# or: ./scripts/build-release.sh 1.0.0
+```
+
+The DMG (on macOS) will be in `src-tauri/target/<target>/release/bundle/dmg/`. To test: open the DMG, drag the app to Applications, then **right-click → Open** (ad-hoc signing allows opening via right-click; double-click may still show a Gatekeeper prompt until you whitelist it).
 
 ## License
 

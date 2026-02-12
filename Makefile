@@ -8,6 +8,11 @@ run:
 build:
 	npm run tauri build
 
+# Replicate CI release build locally (run before pushing a tag)
+# Usage: make build-release VERSION=1.0.0
+build-release:
+	./scripts/build-release.sh $(VERSION)
+
 # Install dependencies (run once before first use)
 install:
 	npm install
