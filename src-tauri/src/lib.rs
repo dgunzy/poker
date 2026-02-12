@@ -12,6 +12,8 @@ use store_backend::StoreBackend;
 use tauri_plugin_store::StoreExt;
 use poker_eval::GameVariant;
 use poker_sim::{Simulator, SimulationInput};
+use poker_sim::training::{self, GameTrainingInfo};
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -304,6 +306,129 @@ fn run_simulation(input: SimulationInputIpc) -> Result<SimulationResultIpc, Stri
     })
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TrainingScenarioInputIpc {
+    pub held_cards: Vec<CardInput>,
+    pub dead_cards: Vec<CardInput>,
+    pub sim_count: u32,
+    pub game_id: String,
+    pub seed: Option<u64>,
+}
+
+/// IPC-friendly TrainingScenario. Frontend expects {rank, suit} for cards, not u8.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum TrainingScenarioIpc {
+    Draw {
+        hand: Vec<CardInput>,
+        rank: u32,
+        percentile: f64,
+    },
+    Board {
+        hole_cards: Vec<CardInput>,
+        board: Vec<CardInput>,
+        best_hand: Vec<CardInput>,
+        rank: u32,
+        percentile: f64,
+    },
+    SplitPot {
+        hole_cards: Vec<CardInput>,
+        board: Vec<CardInput>,
+        best_high_hand: Vec<CardInput>,
+        high_rank: u32,
+        high_percentile: f64,
+        low_qualifies: bool,
+        best_low_hand: Option<Vec<CardInput>>,
+        low_rank: Option<u32>,
+        low_percentile: Option<f64>,
+    },
+}
+
+fn cards_to_ipc(cards: impl IntoIterator<Item = Card>) -> Vec<CardInput> {
+    cards.into_iter().map(card_to_input).collect()
+}
+
+fn training_scenario_to_ipc(s: poker_sim::training::TrainingScenario) -> TrainingScenarioIpc {
+    use poker_sim::training::TrainingScenario as TS;
+    match s {
+        TS::Draw { hand, rank, percentile } => TrainingScenarioIpc::Draw {
+            hand: cards_to_ipc(hand.iter().copied()),
+            rank,
+            percentile,
+        },
+        TS::Board {
+            hole_cards,
+            board,
+            best_hand,
+            rank,
+            percentile,
+        } => TrainingScenarioIpc::Board {
+            hole_cards: cards_to_ipc(hole_cards.iter().copied()),
+            board: cards_to_ipc(board.iter().copied()),
+            best_hand: cards_to_ipc(best_hand.iter().copied()),
+            rank,
+            percentile,
+        },
+        TS::SplitPot {
+            hole_cards,
+            board,
+            best_high_hand,
+            high_rank,
+            high_percentile,
+            low_qualifies,
+            best_low_hand,
+            low_rank,
+            low_percentile,
+        } => TrainingScenarioIpc::SplitPot {
+            hole_cards: cards_to_ipc(hole_cards.iter().copied()),
+            board: cards_to_ipc(board.iter().copied()),
+            best_high_hand: cards_to_ipc(best_high_hand.iter().copied()),
+            high_rank,
+            high_percentile,
+            low_qualifies,
+            best_low_hand: best_low_hand.map(|h| cards_to_ipc(h.iter().copied())),
+            low_rank,
+            low_percentile,
+        },
+    }
+}
+
+#[tauri::command]
+fn get_game_training_info(game_id: String) -> Result<GameTrainingInfo, String> {
+    let variant = GameVariant::from_game_id(&game_id);
+    let strategy = training::training_strategy(variant);
+    Ok(strategy.training_info())
+}
+
+#[tauri::command]
+fn generate_training_scenario(
+    input: TrainingScenarioInputIpc,
+) -> Result<TrainingScenarioIpc, String> {
+    let variant = GameVariant::from_game_id(&input.game_id);
+    let strategy = training::training_strategy(variant);
+
+    let held_cards: Vec<Card> = input
+        .held_cards
+        .iter()
+        .map(card_input_to_card)
+        .collect::<Result<Vec<_>, _>>()?;
+    let dead_cards: Vec<Card> = input
+        .dead_cards
+        .iter()
+        .map(card_input_to_card)
+        .collect::<Result<Vec<_>, _>>()?;
+
+    let seed = input
+        .seed
+        .unwrap_or_else(|| rand::rngs::OsRng.next_u64());
+
+    let scenario = strategy
+        .generate_scenario(&held_cards, &dead_cards, input.sim_count, seed)
+        .map_err(|e| e.to_string())?;
+
+    Ok(training_scenario_to_ipc(scenario))
+}
+
 const STORE_PATH: &str = "store.json";
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -327,6 +452,8 @@ pub fn run() {
             get_ui_config,
             get_preferences,
             set_preferences,
+            get_game_training_info,
+            generate_training_scenario,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

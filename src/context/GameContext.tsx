@@ -8,15 +8,12 @@ const GameContext = createContext<{ gameId: string; setGameId: (id: string) => v
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [gameId, setGameIdState] = useState("deuce_to_seven");
-  const [loaded, setLoaded] = useState(false);
-
   useEffect(() => {
     getPreferences()
       .then((p) => {
         if (p.game_id) setGameIdState(p.game_id);
       })
-      .catch(() => {})
-      .finally(() => setLoaded(true));
+      .catch(() => {});
   }, []);
 
   const setGameId = useCallback((id: string) => {

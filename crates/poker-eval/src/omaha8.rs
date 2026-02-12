@@ -45,18 +45,25 @@ impl O8Evaluator {
     }
 
     fn best_low_rank(hole: &[Card; 4], board: &[Card; 5]) -> Option<u32> {
+        Self::best_low_rank_with_hand(hole, board).map(|(r, _)| r)
+    }
+
+    fn best_low_rank_with_hand(hole: &[Card; 4], board: &[Card; 5]) -> Option<(u32, [Card; 5])> {
         let hole_indices = [0, 1, 2, 3];
         let board_indices = [0, 1, 2, 3, 4];
         let hole_combos = Self::choose2(&hole_indices);
         let board_combos = Self::choose3(&board_indices);
 
-        let mut best = None;
+        let mut best: Option<(u32, [Card; 5])> = None;
         for &[h1, h2] in &hole_combos {
             for &[b1, b2, b3] in &board_combos {
                 let hand = [hole[h1], hole[h2], board[b1], board[b2], board[b3]];
                 if Self::qualifies_low_fixed(&hand) {
                     let rank = AceToFiveEvaluator.evaluate_5(&hand);
-                    best = Some(best.map_or(rank, |b: u32| b.min(rank)));
+                    best = Some(match best {
+                        Some((br, bh)) if br <= rank => (br, bh),
+                        _ => (rank, hand),
+                    });
                 }
             }
         }
@@ -71,6 +78,16 @@ impl O8Evaluator {
     /// Best low hand rank if qualifier exists. None = no qualifying low.
     pub fn evaluate_low(hole: &[Card; 4], board: &[Card; 5]) -> Option<u32> {
         Self::best_low_rank(hole, board)
+    }
+
+    /// Best high hand with cards. Returns (rank, best_hand).
+    pub fn evaluate_high_with_hand(hole: &[Card; 4], board: &[Card; 5]) -> (u32, [Card; 5]) {
+        crate::omaha::OmahaEvaluator::evaluate_omaha_with_hand(hole, board)
+    }
+
+    /// Best low hand with cards if qualifier exists. None = no qualifying low.
+    pub fn evaluate_low_with_hand(hole: &[Card; 4], board: &[Card; 5]) -> Option<(u32, [Card; 5])> {
+        Self::best_low_rank_with_hand(hole, board)
     }
 }
 

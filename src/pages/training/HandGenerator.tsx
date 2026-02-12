@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { runSimulation as runSimulationApi, getPreferences, setPreferences } from "../../api";
+import {
+  getPreferences,
+  setPreferences,
+  getGameTrainingInfo,
+  generateTrainingScenario,
+  type GameTrainingInfo,
+  type TrainingScenario,
+} from "../../api";
 import { useGame } from "../../context/GameContext";
 import { CardPicker } from "../../components/CardPicker";
 import { CardDisplay } from "../../components/CardDisplay";
@@ -13,7 +20,7 @@ export interface CardSelection {
 
 export function HandGenerator() {
   const { gameId } = useGame();
-  const heldMaxCards = gameId === "holdem" ? 2 : gameId === "omaha" || gameId === "omaha8" ? 4 : 5;
+  const [trainingInfo, setTrainingInfo] = useState<GameTrainingInfo | null>(null);
   const [heldCards, setHeldCards] = useState<CardSelection[]>([]);
   const [deadCards, setDeadCards] = useState<CardSelection[]>([]);
   const [drawCount, setDrawCount] = useState(100);
@@ -25,33 +32,33 @@ export function HandGenerator() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    getGameTrainingInfo(gameId).then(setTrainingInfo).catch(() => {});
+    setHeldCards([]);
+    setDeadCards([]);
+    setScenario(null);
+  }, [gameId]);
+
+  const heldMaxCards = trainingInfo?.max_held ?? 5;
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentHand, setCurrentHand] = useState<CardSelection[] | null>(null);
-  const [percentile, setPercentile] = useState<number | null>(null);
+  const [scenario, setScenario] = useState<TrainingScenario | null>(null);
 
   const generateHand = async () => {
     setLoading(true);
     setError(null);
-    setCurrentHand(null);
-    setPercentile(null);
+    setScenario(null);
     try {
       getPreferences().then((p) => setPreferences({ ...p, training_draw_count: drawCount })).catch(() => {});
-      const input = {
+      const result = await generateTrainingScenario({
         held_cards: heldCards.map((c) => ({ rank: c.rank, suit: c.suit })),
         dead_cards: deadCards.map((c) => ({ rank: c.rank, suit: c.suit })),
-        draw_count: Math.max(drawCount, 1),
+        sim_count: Math.max(drawCount, 1),
         game_id: gameId,
-      };
-      const res = await runSimulationApi(input);
-      if (res.results.length === 0) {
-        setError("No results from simulation");
-        return;
-      }
-      const idx = Math.floor(Math.random() * res.results.length);
-      const r = res.results[idx];
-      setCurrentHand(r.hand.map((c, i) => ({ ...c, index: i })));
-      setPercentile(r.percentile);
+      });
+      setScenario(result);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -59,21 +66,62 @@ export function HandGenerator() {
     }
   };
 
-  const isDrawGame = gameId === "deuce_to_seven" || gameId === "ace_to_five";
-  const heldLabel = isDrawGame ? "Your draw (optional)" : "Hole cards";
+  const renderHandDisplay = () => {
+    if (!scenario) return null;
+
+    if (scenario.type === "draw") {
+      return (
+        <div>
+          <div style={styles.handRow}>
+            {scenario.hand.map((c, i) => (
+              <CardDisplay key={i} card={c} size="normal" />
+            ))}
+          </div>
+          <p style={styles.percentile}>Percentile: {scenario.percentile.toFixed(1)}%</p>
+        </div>
+      );
+    }
+
+    const holeCards = scenario.hole_cards;
+    const board = scenario.board;
+    const highPercentile = scenario.type === "board" ? scenario.percentile : scenario.high_percentile;
+
+    return (
+      <div>
+        <h3 style={styles.subTitle}>Hole cards</h3>
+        <div style={styles.handRow}>
+          {holeCards.map((c, i) => (
+            <CardDisplay key={`hole-${i}`} card={c} size="normal" />
+          ))}
+        </div>
+        <h3 style={{ ...styles.subTitle, marginTop: "0.75rem" }}>Board</h3>
+        <div style={styles.handRow}>
+          {board.map((c, i) => (
+            <CardDisplay key={`board-${i}`} card={c} size="normal" />
+          ))}
+        </div>
+        <p style={styles.percentile}>
+          {scenario.type === "split_pot" ? "High percentile" : "Percentile"}: {highPercentile.toFixed(1)}%
+        </p>
+        {scenario.type === "split_pot" && (
+          scenario.low_qualifies && scenario.low_percentile !== null ? (
+            <p style={styles.percentile}>Low percentile: {scenario.low_percentile.toFixed(1)}%</p>
+          ) : (
+            <div style={styles.noLowBadge}>No qualifying low</div>
+          )
+        )}
+      </div>
+    );
+  };
 
   return (
     <div style={styles.container}>
       <section style={styles.section}>
         <h2 style={styles.sectionTitle}>Setup</h2>
-        <p style={styles.hint}>
-          {isDrawGame
-            ? "Set your draw and dead cards for context, or leave empty for purely random 5-card hands. Great for flash cards."
-            : "Set 0–2 hole cards (Hold'em) or 0–4 (Omaha). We pad with random cards and simulate boards. Dead cards excluded."}
-        </p>
+        <p style={styles.hint}>{trainingInfo?.held_hint ?? ""}</p>
         <div style={styles.setupRow}>
           <div>
-            <h3 style={styles.subTitle}>{heldLabel}</h3>
+            <h3 style={styles.subTitle}>{trainingInfo?.held_label ?? "Cards"}</h3>
             <CardPicker selected={heldCards} onChange={setHeldCards} maxCards={heldMaxCards} excludedCards={deadCards} />
           </div>
           <div>
@@ -97,23 +145,16 @@ export function HandGenerator() {
           disabled={loading}
           style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
         >
-          {loading ? "Generating…" : "Generate hand"}
+          {loading ? "Generating\u2026" : "Generate hand"}
         </button>
       </section>
 
       {error && <div style={styles.error}>{error}</div>}
 
-      {currentHand && (
+      {scenario && (
         <section style={styles.section}>
           <h2 style={styles.sectionTitle}>Hand</h2>
-          <div style={styles.handRow}>
-            {currentHand.map((c, i) => (
-              <CardDisplay key={i} card={c} size="normal" />
-            ))}
-          </div>
-          {percentile !== null && (
-            <p style={styles.percentile}>Percentile: {percentile.toFixed(1)}%</p>
-          )}
+          {renderHandDisplay()}
           <button onClick={generateHand} style={styles.nextButton}>
             Next hand
           </button>
@@ -155,7 +196,17 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: "1rem",
   },
   handRow: { display: "flex", gap: 8, marginBottom: "1rem", flexWrap: "wrap" },
-  percentile: { fontSize: "0.9rem", color: theme.textMuted, marginBottom: "1rem" },
+  percentile: { fontSize: "0.9rem", color: theme.textMuted, marginBottom: "0.5rem" },
+  noLowBadge: {
+    display: "inline-block",
+    padding: "0.3rem 0.6rem",
+    borderRadius: 4,
+    background: theme.surface,
+    border: `1px solid ${theme.border}`,
+    color: theme.textMuted,
+    fontSize: "0.8rem",
+    marginBottom: "0.5rem",
+  },
   nextButton: {
     padding: "0.5rem 1rem",
     borderRadius: 6,

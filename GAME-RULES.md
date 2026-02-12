@@ -10,8 +10,8 @@ The simulator supports two **simulation types** (see `config/games.toml`):
 
 | Type | Games | Held cards | Behavior |
 |------|-------|------------|----------|
-| **Draw** | 2-7, A-5 | 0–5 | User holds cards they're keeping. Simulate random draws to complete hand. Percentile = where hand ranks vs. all possible draws. |
-| **Board** | Hold'em, Omaha, O8 | 0–2 (Hold'em) or 0–4 (Omaha) | User holds hole cards. Simulate random boards. Pad hole with random cards when held &lt; max. Percentile = where hand ranks vs. all possible boards. |
+| **Draw** | 2-7, A-5 | 0–5 | User holds cards they're keeping. Simulate random draws to complete hand. Each result = completed 5-card hand. Percentile = where hand ranks vs. all possible draws. |
+| **Board** | Hold'em, Omaha, O8 | 0–2 (Hold'em) or 0–4 (Omaha) | User holds hole cards. Simulate random boards (5 community cards). Pad hole with random when held &lt; max. Each result = the board (never contains hole cards). Percentile = where hero's hand ranks vs. all possible boards. |
 
 **Dead cards** are always excluded from the simulation pool (folded cards, opponent mucks, etc.).
 

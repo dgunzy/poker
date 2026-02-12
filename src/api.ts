@@ -96,4 +96,76 @@ export async function setPreferences(prefs: Preferences): Promise<void> {
   await invoke("set_preferences", { prefs });
 }
 
+// -- Training types --
+
+export interface GameTrainingInfo {
+  display_mode: "draw" | "board" | "split";
+  held_label: string;
+  held_hint: string;
+  max_held: number;
+  has_low: boolean;
+  game_help: string;
+}
+
+export type TrainingScenario =
+  | {
+      type: "draw";
+      hand: Array<{ rank: string; suit: string }>;
+      rank: number;
+      percentile: number;
+    }
+  | {
+      type: "board";
+      hole_cards: Array<{ rank: string; suit: string }>;
+      board: Array<{ rank: string; suit: string }>;
+      best_hand: Array<{ rank: string; suit: string }>;
+      rank: number;
+      percentile: number;
+    }
+  | {
+      type: "split_pot";
+      hole_cards: Array<{ rank: string; suit: string }>;
+      board: Array<{ rank: string; suit: string }>;
+      best_high_hand: Array<{ rank: string; suit: string }>;
+      high_rank: number;
+      high_percentile: number;
+      low_qualifies: boolean;
+      best_low_hand: Array<{ rank: string; suit: string }> | null;
+      low_rank: number | null;
+      low_percentile: number | null;
+    };
+
+export interface TrainingScenarioInput {
+  held_cards: Array<{ rank: string; suit: string }>;
+  dead_cards: Array<{ rank: string; suit: string }>;
+  sim_count: number;
+  game_id: string;
+  seed?: number;
+}
+
+export async function getGameTrainingInfo(gameId: string): Promise<GameTrainingInfo> {
+  if (!isTauriAvailable()) {
+    return {
+      display_mode: "draw",
+      held_label: "Your draw (cards you're keeping)",
+      held_hint: "0–5 cards.",
+      max_held: 5,
+      has_low: false,
+      game_help: "Guess where a random draw ranks.",
+    };
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke("get_game_training_info", { gameId });
+}
+
+export async function generateTrainingScenario(
+  input: TrainingScenarioInput,
+): Promise<TrainingScenario> {
+  if (!isTauriAvailable()) {
+    throw new Error("Tauri API not available. Run 'npm run tauri dev' to use training.");
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke("generate_training_scenario", { input });
+}
+
 export const tauriAvailable = isTauriAvailable();
