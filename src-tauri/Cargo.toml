@@ -20,3 +20,4 @@ toml = "0.8"
 poker-core = { path = "../crates/poker-core" }
 poker-eval = { path = "../crates/poker-eval" }
 poker-sim = { path = "../crates/poker-sim" }
+rand = "0.8"

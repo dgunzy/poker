@@ -175,7 +175,7 @@ export function Simulation() {
                 >
                   Rank {sortKey === "rank" && (sortAsc ? "↑" : "↓")}
                 </button>
-                <span style={styles.colHeader}>Hand</span>
+                <span style={styles.colHeader}>{isDrawGame ? "Hand" : "Board"}</span>
                 <button
                   style={styles.colHeader}
                   onClick={() => toggleSort("percentile")}

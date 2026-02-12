@@ -151,7 +151,8 @@ impl Simulator {
                     }
                     let hole: [Card; 2] = full_hole.as_slice().try_into().unwrap();
                     let board: [Card; 5] = deck.draw(5).try_into().unwrap();
-                    HoldemEvaluator::evaluate_holdem_with_hand(&hole, &board)
+                    let (rank, _best_hand) = HoldemEvaluator::evaluate_holdem_with_hand(&hole, &board);
+                    (rank, board)
                 })
                 .collect();
             trials.sort_unstable_by_key(|(r, _)| *r);
@@ -161,9 +162,9 @@ impl Simulator {
             let results: Vec<HandResult> = trials
                 .into_iter()
                 .enumerate()
-                .map(|(i, (rank, hand))| {
+                .map(|(i, (rank, board))| {
                     let percentile = if n > 0.0 { ((i as f64 + 0.5) / n) * 100.0 } else { 0.0 };
-                    HandResult { hand, rank, percentile }
+                    HandResult { hand: board, rank, percentile }
                 })
                 .collect();
             return Ok(SimulationResult {
@@ -189,7 +190,8 @@ impl Simulator {
                     }
                     let hole: [Card; 4] = full_hole.as_slice().try_into().unwrap();
                     let board: [Card; 5] = deck.draw(5).try_into().unwrap();
-                    OmahaEvaluator::evaluate_omaha_with_hand(&hole, &board)
+                    let (rank, _best_hand) = OmahaEvaluator::evaluate_omaha_with_hand(&hole, &board);
+                    (rank, board)
                 })
                 .collect();
             trials.sort_unstable_by_key(|(r, _)| *r);
@@ -199,9 +201,9 @@ impl Simulator {
             let results: Vec<HandResult> = trials
                 .into_iter()
                 .enumerate()
-                .map(|(i, (rank, hand))| {
+                .map(|(i, (rank, board))| {
                     let percentile = if n > 0.0 { ((i as f64 + 0.5) / n) * 100.0 } else { 0.0 };
-                    HandResult { hand, rank, percentile }
+                    HandResult { hand: board, rank, percentile }
                 })
                 .collect();
             return Ok(SimulationResult {
@@ -261,7 +263,7 @@ impl Simulator {
         })
     }
 
-    fn evaluate_hand(cards: &[Card; 5], variant: GameVariant) -> u32 {
+    pub(crate) fn evaluate_hand(cards: &[Card; 5], variant: GameVariant) -> u32 {
         match variant {
             GameVariant::DeuceToSeven => DeuceToSevenEvaluator.evaluate_5(cards),
             GameVariant::AceToFive => AceToFiveEvaluator.evaluate_5(cards),
@@ -435,6 +437,30 @@ mod tests {
         let result = sim.run(&input).unwrap();
         assert_eq!(result.results.len(), 50);
         assert!(result.results.iter().all(|r| r.hand.len() == 5));
+    }
+
+    #[test]
+    fn holdem_result_board_does_not_contain_hole_cards() {
+        let hole = [card(Two, Clubs), card(Three, Diamonds)];
+        let input = SimulationInput {
+            held_cards: hole.to_vec(),
+            dead_cards: vec![],
+            draw_count: 100,
+            seed: Some(12345),
+            game_variant: GameVariant::Holdem,
+        };
+        let sim = Simulator::default();
+        let result = sim.run(&input).unwrap();
+        let hole_set: std::collections::HashSet<_> = hole.iter().copied().collect();
+        for r in &result.results {
+            for c in r.hand {
+                assert!(
+                    !hole_set.contains(&c),
+                    "Board must not contain hole cards: {:?} in result",
+                    c
+                );
+            }
+        }
     }
 
     #[test]

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { getPreferences, setPreferences } from "../api";
+import { getPreferences, setPreferences, getGameTrainingInfo } from "../api";
+import { useGame } from "../context/GameContext";
 import { PercentileGuessing } from "./training/PercentileGuessing";
 import { HandGenerator } from "./training/HandGenerator";
 import { theme } from "../theme";
@@ -7,7 +8,9 @@ import { theme } from "../theme";
 type TrainingMode = "percentile" | "generator";
 
 export function Training() {
+  const { gameId } = useGame();
   const [mode, setModeState] = useState<TrainingMode>("percentile");
+  const [gameHelp, setGameHelp] = useState("");
 
   useEffect(() => {
     getPreferences()
@@ -17,6 +20,12 @@ export function Training() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    getGameTrainingInfo(gameId)
+      .then((info) => setGameHelp(info.game_help))
+      .catch(() => {});
+  }, [gameId]);
+
   const setMode = useCallback((m: TrainingMode) => {
     setModeState(m);
     getPreferences()
@@ -24,15 +33,16 @@ export function Training() {
       .catch(() => {});
   }, []);
 
+  const subtitle =
+    mode === "percentile"
+      ? gameHelp || "Guess the percentile \u2014 we pick a random hand, you estimate where it ranks."
+      : "Hand generator \u2014 generate random hands with nice graphics for flash cards and study.";
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
         <h1 style={styles.title}>Training</h1>
-        <p style={styles.subtitle}>
-          {mode === "percentile"
-            ? "Guess the percentile — we pick a random hand, you estimate where it ranks. Green/Yellow/Red feedback."
-            : "Hand generator — generate random hands with nice graphics for flash cards and study."}
-        </p>
+        <p style={styles.subtitle}>{subtitle}</p>
         <div style={styles.modeRow}>
           <button
             onClick={() => setMode("percentile")}
