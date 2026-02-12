@@ -20,16 +20,34 @@ jobs:
           - os: macos-latest
             target: aarch64-apple-darwin
             label: macos-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            label: macos-x64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             label: windows-x86_64
 
     runs-on: ${{ matrix.os }}
 
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify version from tag
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ -z "$VERSION" || ! "$VERSION" =~ ^[0-9]+\.[0-9]+ ]]; then
+            echo "::error::Invalid version from tag: $GITHUB_REF_NAME (expected vX.Y.Z)"
+            exit 1
+          fi
+          echo "Version $VERSION is valid"
+
       - name: Set version from tag
+        shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           npm pkg set version="$VERSION"
